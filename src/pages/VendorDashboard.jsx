@@ -245,7 +245,7 @@ function ProductModule(){
     </div>
     {error&&<div className="form-error">{error}</div>}
     <div className="dash-toolbar">
-      <div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Search products, SKU, brand or category"/></div>
+      <div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Searching......"/></div>
       <select className="table-filter-select" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}}><option value="">All statuses</option>{[...new Set(rows.map(p=>p.status).filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select>
     </div>
     <div className="data-card">
@@ -284,7 +284,7 @@ function InventoryModule(){
   const shown=filtered.slice((page-1)*per,page*per);
   return <>
     <div className="dash-page-head"><div><span className="eyebrow">SELLER PLATFORM</span><h1>Inventory</h1><p>Monitor stock levels across your published catalog.</p></div></div>
-    <div className="dash-toolbar"><div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Search products"/></div></div>
+    <div className="dash-toolbar"><div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Searching......"/></div></div>
     <div className="data-card"><div className="data-table">
       <div className="data-row module-row"><span className="table-label">Product</span><span className="table-label">SKU</span><span className="table-label">On hand</span><span className="table-label">Threshold</span><span className="table-label">Status</span></div>
       {loading && <div className="empty-state"><h3>Loading…</h3></div>}
