@@ -13,6 +13,5 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 8080,
     allowedHosts: ['mvec.up.railway.app'],
-    // allowedHosts: ['mvec.up.railway.app'],
   },
 })
