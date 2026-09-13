@@ -76,7 +76,31 @@ function SellerOverview(){
   </>;
 }
 
-const emptyProduct={name:'',sku:'',categoryId:'',brand:'',shortDescription:'',description:'',price:'',discountPrice:'',costPrice:'',stockQuantity:'',lowStockThreshold:5,status:'DRAFT',mainImage:'',gallery:[],color:'',size:'',material:'',weight:'',capacity:'',model:''};
+// const emptyProduct={name:'',sku:'',categoryId:'',brand:'',shortDescription:'',description:'',price:'',discountPrice:'',costPrice:'',stockQuantity:'',lowStockThreshold:5,status:'DRAFT',mainImage:'',gallery:[],color:'',size:'',material:'',weight:'',capacity:'',model:''};
+
+const emptyProduct={
+  name:'',
+  sku:'',
+  categoryId:'',
+  brand:'',
+  shortDescription:'',
+  description:'',
+  price:'',
+  discountPrice:'',
+  costPrice:'',
+  stockQuantity:'',
+  lowStockThreshold:5,
+  status:'DRAFT',
+  mainImage:'',
+  gallery:[],
+  imageFiles:[],
+  color:'',
+  size:'',
+  material:'',
+  weight:'',
+  capacity:'',
+  model:''
+};
 
 function ProductForm({product,onSave,onCancel,saving}){
   const [form,setForm]=useState(()=>{
@@ -111,13 +135,26 @@ function ProductForm({product,onSave,onCancel,saving}){
       setNewCategory('');
     }catch(err){ setError(extractErrorMessage(err)); }
   };
-  const addImages=e=>{
-    [...e.target.files||[]].forEach(file=>{
-      const reader=new FileReader();
-      reader.onload=()=>setForm(f=>({...f,mainImage:f.mainImage||reader.result,gallery:[...f.gallery,reader.result]}));
-      reader.readAsDataURL(file);
-    });
-    e.target.value='';
+  // const addImages=e=>{
+  //   [...e.target.files||[]].forEach(file=>{
+  //     const reader=new FileReader();
+  //     reader.onload=()=>setForm(f=>({...f,mainImage:f.mainImage||reader.result,gallery:[...f.gallery,reader.result]}));
+  //     reader.readAsDataURL(file);
+  //   });
+  //   e.target.value='';
+  // };
+
+  const addImages = e => {
+    const files = Array.from(e.target.files || []);
+
+    if (!files.length) return;
+
+    setForm(f => ({
+      ...f,
+      imageFiles: [...(f.imageFiles || []), ...files],
+    }));
+
+    e.target.value = '';
   };
   const removeImage=i=>setForm(f=>{
     const nextGallery=f.gallery.filter((_,x)=>x!==i);
