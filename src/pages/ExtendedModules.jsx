@@ -7,7 +7,6 @@ import SmartTable from '../components/SmartTable';
 import Icon from '../components/Icon';
 import {getLedger,getCommissionRules,saveCommissionRules,calculateOrderPricing,getOrders,recordLedgerEntry,addNotification,getSubscription,setSubscription} from '../services/mvecStore';
 import {products,vendors} from '../data';
-import {useLanguage} from '../context/LanguageContext';
 
 const money=n=>new Intl.NumberFormat('en-RW').format(Number(n)||0)+' RWF';
 const dmy=d=>new Date(d).toLocaleDateString('en-GB');
@@ -60,8 +59,5 @@ export function RiskManagement(){
 }
 
 export function LanguageSettings(){
- const {translations,custom,updateTranslation}=useLanguage();
- const [lang,setLang]=useState('en');
- const keys=Object.keys(translations.en);
- return <DashboardLayout admin><Header eyebrow="PLATFORM · LANGUAGES" title="Language management" desc="Manage the marketplace language options and translation keys."/><div className="data-card"><div className="language-admin-head"><div><h3>Translation keys</h3><span>Changes are saved for the selected language.</span></div><select className="period-select" value={lang} onChange={e=>setLang(e.target.value)}><option value="en">English</option><option value="rw">Kinyarwanda</option><option value="fr">Français</option></select></div><div className="translation-list">{keys.map(key=><label className="translation-row" key={key}><span><b>{key}</b><small>English: {translations.en[key]}</small></span><input value={custom[lang]?.[key]||translations[lang]?.[key]||''} onChange={e=>updateTranslation(lang,key,e.target.value)} placeholder={translations.en[key]}/></label>)}</div></div></DashboardLayout>;
+ return <DashboardLayout admin><Header eyebrow="PLATFORM · LANGUAGES" title="Language" desc="MVEC currently operates in English only."/><div className="data-card"><div className="verified-box"><b>English only</b><p>Multi-language support has been turned off. The marketplace, dashboards and notifications are all in English.</p></div></div></DashboardLayout>;
 }

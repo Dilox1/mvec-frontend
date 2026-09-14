@@ -8,6 +8,7 @@ import DeliveryTracking from '../components/DeliveryTracking';
 import NotificationPanel from '../components/NotificationPanel';
 import { productsApi } from '../API/products';
 import { categoriesApi } from '../API/categories';
+import { uploadsApi } from '../API/uploads';
 import { ordersApi } from '../API/orders';
 import { payoutsApi } from '../API/payouts';
 import { extractErrorMessage } from '../API/client';
@@ -76,31 +77,7 @@ function SellerOverview(){
   </>;
 }
 
-// const emptyProduct={name:'',sku:'',categoryId:'',brand:'',shortDescription:'',description:'',price:'',discountPrice:'',costPrice:'',stockQuantity:'',lowStockThreshold:5,status:'DRAFT',mainImage:'',gallery:[],color:'',size:'',material:'',weight:'',capacity:'',model:''};
-
-const emptyProduct={
-  name:'',
-  sku:'',
-  categoryId:'',
-  brand:'',
-  shortDescription:'',
-  description:'',
-  price:'',
-  discountPrice:'',
-  costPrice:'',
-  stockQuantity:'',
-  lowStockThreshold:5,
-  status:'DRAFT',
-  mainImage:'',
-  gallery:[],
-  imageFiles:[],
-  color:'',
-  size:'',
-  material:'',
-  weight:'',
-  capacity:'',
-  model:''
-};
+const emptyProduct={name:'',sku:'',categoryId:'',brand:'',shortDescription:'',description:'',price:'',discountPrice:'',costPrice:'',stockQuantity:'',lowStockThreshold:5,status:'DRAFT',mainImage:'',gallery:[],color:'',size:'',material:'',weight:'',capacity:'',model:''};
 
 function ProductForm({product,onSave,onCancel,saving}){
   const [form,setForm]=useState(()=>{
@@ -135,26 +112,19 @@ function ProductForm({product,onSave,onCancel,saving}){
       setNewCategory('');
     }catch(err){ setError(extractErrorMessage(err)); }
   };
-  // const addImages=e=>{
-  //   [...e.target.files||[]].forEach(file=>{
-  //     const reader=new FileReader();
-  //     reader.onload=()=>setForm(f=>({...f,mainImage:f.mainImage||reader.result,gallery:[...f.gallery,reader.result]}));
-  //     reader.readAsDataURL(file);
-  //   });
-  //   e.target.value='';
-  // };
-
-  const addImages = e => {
-    const files = Array.from(e.target.files || []);
-
-    if (!files.length) return;
-
-    setForm(f => ({
-      ...f,
-      imageFiles: [...(f.imageFiles || []), ...files],
-    }));
-
-    e.target.value = '';
+  const [uploading,setUploading]=useState(false);
+  const addImages=async(e)=>{
+    const files=[...e.target.files||[]];
+    e.target.value='';
+    if(!files.length) return;
+    setUploading(true);
+    setError('');
+    try{
+      const res=await uploadsApi.uploadImages(files);
+      const urls=res.urls||[];
+      setForm(f=>({...f,mainImage:f.mainImage||urls[0]||'',gallery:[...f.gallery,...urls]}));
+    }catch(err){ setError(extractErrorMessage(err)); }
+    finally{ setUploading(false); }
   };
   const removeImage=i=>setForm(f=>{
     const nextGallery=f.gallery.filter((_,x)=>x!==i);
@@ -197,10 +167,10 @@ function ProductForm({product,onSave,onCancel,saving}){
         <div className="three-col">{[['color','Color'],['size','Size'],['material','Material'],['weight','Weight'],['capacity','Capacity'],['model','Model']].map(([name,label])=><label className="field" key={name}><span>{label}</span><input name={name} value={form[name]||''} onChange={update} placeholder={label}/></label>)}</div>
       </section>
       <section className="editor-section"><h3>Media</h3><p className="editor-help">Upload product images. The first image becomes the main product image.</p>
-        <label className="upload-zone"><Icon name="box"/><b>Upload product images</b><small>PNG, JPG or WEBP, multiple files supported</small><input type="file" accept="image/*" multiple onChange={addImages}/></label>
+        <label className="upload-zone"><Icon name="box"/><b>{uploading?'Uploading…':'Upload product images'}</b><small>PNG, JPG or WEBP, multiple files supported (max 8MB each)</small><input type="file" accept="image/*" multiple onChange={addImages} disabled={uploading}/></label>
         {form.gallery.length>0&&<div className="media-grid">{form.gallery.map((src,i)=><div className="media-thumb" key={i}><img src={src} alt={`Product ${i+1}`}/><button type="button" onClick={()=>removeImage(i)}>×</button>{i===0&&<span>Main image</span>}</div>)}</div>}
       </section>
-      <div className="editor-actions"><button type="button" className="outline-btn" onClick={onCancel}>Cancel</button><button className="gradient-btn" type="submit" disabled={saving}>{saving?'Saving...':product?'Save changes':'Create product'}</button></div>
+      <div className="editor-actions"><button type="button" className="outline-btn" onClick={onCancel}>Cancel</button><button className="gradient-btn" type="submit" disabled={saving||uploading}>{saving?'Saving...':product?'Save changes':'Create product'}</button></div>
     </form>
   </div>;
 }
@@ -282,7 +252,7 @@ function ProductModule(){
     </div>
     {error&&<div className="form-error">{error}</div>}
     <div className="dash-toolbar">
-      <div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Searching......"/></div>
+      <div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Search products, SKU, brand or category"/></div>
       <select className="table-filter-select" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}}><option value="">All statuses</option>{[...new Set(rows.map(p=>p.status).filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select>
     </div>
     <div className="data-card">
@@ -321,7 +291,7 @@ function InventoryModule(){
   const shown=filtered.slice((page-1)*per,page*per);
   return <>
     <div className="dash-page-head"><div><span className="eyebrow">SELLER PLATFORM</span><h1>Inventory</h1><p>Monitor stock levels across your published catalog.</p></div></div>
-    <div className="dash-toolbar"><div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Searching......"/></div></div>
+    <div className="dash-toolbar"><div className="dash-filter"><Icon name="search"/><input value={q} onChange={e=>{setQ(e.target.value);setPage(1)}} placeholder="Search products"/></div></div>
     <div className="data-card"><div className="data-table">
       <div className="data-row module-row"><span className="table-label">Product</span><span className="table-label">SKU</span><span className="table-label">On hand</span><span className="table-label">Threshold</span><span className="table-label">Status</span></div>
       {loading && <div className="empty-state"><h3>Loading…</h3></div>}
