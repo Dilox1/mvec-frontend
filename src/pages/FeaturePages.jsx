@@ -4,8 +4,11 @@ import Icon from '../components/Icon';
 import SmartTable from '../components/SmartTable';
 import DashboardLayout from '../components/DashboardLayout';import Storefront from '../components/Storefront';import NotificationPanel from '../components/NotificationPanel';
 import {vendors,categories} from '../data';
-import {getOrders,updateOrder,getCommissionRate,calculateCommission,store} from '../services/mvecStore';
 import {productsApi} from '../API/products';
+import {categoriesApi} from '../API/categories';
+import {wholesaleApi} from '../API/wholesale';
+import {disputesApi} from '../API/disputes';
+import {adminApi} from '../API/admin';
 import {mapBackendProduct} from '../services/catalogApi';
 import {extractErrorMessage} from '../API/client';
 
@@ -57,6 +60,49 @@ const moduleConfig={
  }
 };
 
+function VendorCategories(){
+ const [rows,setRows]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+ useEffect(()=>{categoriesApi.getAll().then(res=>setRows(res.categories||[])).catch(err=>setError(extractErrorMessage(err))).finally(()=>setLoading(false));},[]);
+ return <><Header eyebrow="VENDOR · CATEGORIES" title="Category management" desc="Marketplace-wide categories your products can belong to."/>
+  {error&&<div className="form-error">{error}</div>}
+  <div className="data-card">{loading&&<div className="empty-state"><h3>Loading…</h3></div>}
+   {!loading&&<SmartTable columns={[{key:'name',label:'Category'},{key:'products',label:'Products',render:r=>r._count?.products??0},{key:'status',label:'Status',render:r=><em className={'status '+(r.active?'active':'warning')}>{r.active?'Active':'Inactive'}</em>}]} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search categories…" empty="No categories yet."/>}
+  </div></>;
+}
+
+function WholesaleList({role}){
+ const [rows,setRows]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+ useEffect(()=>{wholesaleApi.getMine().then(res=>setRows(res.data||[])).catch(err=>setError(extractErrorMessage(err))).finally(()=>setLoading(false));},[]);
+ const columns=role==='supplier'
+  ?[{key:'orderNumber',label:'Order'},{key:'vendor',label:'Vendor',render:r=>r.vendor?.companyName||r.vendor?.fullName||'Vendor'},{key:'totalAmount',label:'Total',render:r=>money(r.totalAmount)},{key:'status',label:'Status',render:r=><em className={'status '+(r.status==='CONFIRMED_RELEASED'?'active':'warning')}>{r.status}</em>}]
+  :[{key:'orderNumber',label:'Order'},{key:'supplier',label:'Supplier',render:r=>r.supplier?.companyName||r.supplier?.fullName||'Supplier'},{key:'totalAmount',label:'Total',render:r=>money(r.totalAmount)},{key:'status',label:'Status',render:r=><em className={'status '+(r.status==='CONFIRMED_RELEASED'?'active':'warning')}>{r.status}</em>}];
+ return <><Header eyebrow={role==='supplier'?'SUPPLIER · ORDERS':'VENDOR · PURCHASES'} title={role==='supplier'?'Vendor orders':'Purchases'} desc={role==='supplier'?'Wholesale orders vendors have placed with you.':'Wholesale stock you have ordered from suppliers.'}/>
+  {error&&<div className="form-error">{error}</div>}
+  <div className="data-card">{loading&&<div className="empty-state"><h3>Loading…</h3></div>}
+   {!loading&&<SmartTable columns={columns} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search wholesale orders…" empty="No wholesale orders yet."/>}
+  </div></>;
+}
+
+function AdminPayments(){
+ const [rows,setRows]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+ useEffect(()=>{adminApi.getPayments({pageSize:100}).then(res=>setRows(res.data||[])).catch(err=>setError(extractErrorMessage(err))).finally(()=>setLoading(false));},[]);
+ return <><Header eyebrow="ADMIN · PAYMENTS" title="Payments" desc="Monitor payment confirmations and protected settlement states."/>
+  {error&&<div className="form-error">{error}</div>}
+  <div className="data-card">{loading&&<div className="empty-state"><h3>Loading…</h3></div>}
+   {!loading&&<SmartTable columns={[{key:'transactionReference',label:'Reference'},{key:'order',label:'Order',render:r=>r.parentOrder?.orderNumber||r.parentOrderId},{key:'amount',label:'Amount',render:r=>money(r.amount)},{key:'method',label:'Method'},{key:'status',label:'Status',render:r=><em className={'status '+(r.status==='SUCCESS'?'active':'warning')}>{r.status}</em>}]} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search payments…" empty="No payments yet."/>}
+  </div></>;
+}
+
+function DisputesList({role}){
+ const [rows,setRows]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+ useEffect(()=>{disputesApi.getAll({pageSize:100}).then(res=>setRows(res.data||[])).catch(err=>setError(extractErrorMessage(err))).finally(()=>setLoading(false));},[]);
+ return <><Header eyebrow={`${role.toUpperCase()} · REFUNDS`} title="Refunds & disputes" desc="Review reported problems, evidence and their current resolution status."/>
+  {error&&<div className="form-error">{error}</div>}
+  <div className="data-card">{loading&&<div className="empty-state"><h3>Loading…</h3></div>}
+   {!loading&&<SmartTable columns={[{key:'disputeNumber',label:'Case'},{key:'order',label:'Order',render:r=>r.order?.orderNumber||''},{key:'reason',label:'Reason'},{key:'disputedAmount',label:'Amount',render:r=>money(r.disputedAmount)},{key:'status',label:'Status',render:r=><em className={'status '+(r.status.startsWith('RESOLVED')?'active':'warning')}>{r.status}</em>}]} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search disputes…" empty="No disputes yet."/>}
+  </div></>;
+}
+
 function GenericTableModule({role,type}){
  const cfg=moduleConfig[role][type];
  const [rows,setRows]=useState(()=>read(`mvec_${role}_${type}`,null));
@@ -107,6 +153,11 @@ function GenericTableModule({role,type}){
  };
  if(type==='support') return <SupportModule role={role}/>;
  if(type==='notifications') return <><Header eyebrow={`${role.toUpperCase()} · ${cfg[0]}`} title={cfg[1]} desc={cfg[2]}/><NotificationPanel/></>;
+ if(type==='categories'&&role==='vendor') return <VendorCategories/>;
+ if(type==='purchases'&&role==='vendor') return <WholesaleList role="vendor"/>;
+ if((type==='supply-requests'||type==='transactions')&&role==='supplier') return <WholesaleList role="supplier"/>;
+ if(type==='payments'&&role==='admin') return <AdminPayments/>;
+ if(type==='refunds') return <DisputesList role={role}/>;
  return <><Header eyebrow={`${role.toUpperCase()} · ${cfg[0]}`} title={cfg[1]} desc={cfg[2]}/>{notice&&<div className="success-text">{notice}</div>}<div className="data-card"><SmartTable columns={columns} rows={data} rowKey={r=>r.id||r.name||r.plan||r.zone||r.control||r.signal||r.party} searchPlaceholder={`Search ${cfg[1].toLowerCase()}…`} exportName={`mvec-${role}-${type}`} actions={actionTypes.includes(type)?contextualAction:undefined}/></div>{details&&<div className="modal-backdrop" onMouseDown={()=>setDetails(null)}><div className="modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDetails(null)}>×</button><span className="eyebrow">DETAILS</span><h2>{type==='trust'?'Trust profile':'Security policy'}</h2><div className="vendor-detail-grid">{Object.entries(details).map(([k,v])=><div key={k}><span>{k.replace(/([A-Z])/g,' $1')}</span><b>{String(v)}</b></div>)}</div><button className="gradient-btn" onClick={()=>setDetails(null)}>Done</button></div></div>}</>;
 }
 
@@ -117,16 +168,14 @@ function SupportModule({role}){
  return <div className="data-card support-direct"><h3>Contact MVEC</h3><p>Send a message directly to the MVEC support team. Your request can be linked to an order or transaction reference.</p><div className="form-row"><label className="field"><span>Subject</span><input value={subject} onChange={e=>setSubject(e.target.value)}/></label><label className="field"><span>Order or transaction ID</span><input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Optional"/></label></div><label className="field"><span>Message</span><textarea rows="5" value={message} onChange={e=>setMessage(e.target.value)} placeholder="Describe the issue…"/></label><div className="support-actions"><button className="gradient-btn" onClick={submit} disabled={!subject.trim()||!message.trim()}>Send to MVEC</button><a className="outline-btn" href="sms:+250788100000">Send SMS</a></div>{sent&&<p className="success-text">Support request submitted successfully.</p>}</div>;
 }
 function BuyerRefunds(){
- const [rows,setRows]=useState(()=>read('mvec_buyer_refunds',[{id:'REF-1001',order:'MVEC-WIRELESS-NOISE-CANCELLING-HEADPHONES-2026-000001-4821',reason:'Damaged product',amount:68000,status:'Under review',date:'31/08/2026'}]));
- const orders=getOrders(); const [open,setOpen]=useState(false); const [orderId,setOrderId]=useState(orders[0]?.id||''); const [reason,setReason]=useState(''); const [message,setMessage]=useState('');
- const submit=()=>{const order=orders.find(o=>String(o.id)===String(orderId));if(!order||!reason.trim())return;const next={id:`REF-${Date.now()}`,order:order.id,reason:reason.trim(),amount:Number(order.total||0),status:'Submitted',date:dateDMY(new Date())};const list=[next,...rows];setRows(list);write('mvec_buyer_refunds',list);setReason('');setMessage('Refund request submitted successfully.');setOpen(false);setTimeout(()=>setMessage(''),2200)};
- return <><Header eyebrow="BUYER" title="Refunds" desc="Request and track refunds with evidence and a clear audit trail."/><SettingCard title="Request a refund"><p className="tiny">Choose an order, explain the problem and submit the request for review.</p><button className="gradient-btn" onClick={()=>setOpen(true)}>Start refund request</button>{message&&<p className="success-text">{message}</p>}</SettingCard><div className="data-card"><SmartTable columns={[{key:'id',label:'Refund'},{key:'order',label:'Order'},{key:'reason',label:'Reason'},{key:'amount',label:'Amount',render:r=>money(r.amount)},{key:'status',label:'Status'},{key:'date',label:'Date'}]} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search refunds…" exportName="buyer-refunds"/></div>{open&&<div className="modal-backdrop" onMouseDown={()=>setOpen(false)}><div className="modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setOpen(false)}>×</button><span className="eyebrow">REFUND REQUEST</span><h2>Request a refund</h2><label className="field"><span>Order</span><select value={orderId} onChange={e=>setOrderId(e.target.value)}>{orders.length?orders.map(o=><option key={o.id} value={o.id}>{o.id} · {money(o.total)}</option>):<option value="">No orders available</option>}</select></label><label className="field"><span>Reason</span><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="e.g. Damaged product"/></label><div className="modal-actions"><button className="outline-btn" onClick={()=>setOpen(false)}>Cancel</button><button className="gradient-btn" onClick={submit} disabled={!orderId||!reason.trim()}>Submit request</button></div></div></div>}</>;
-}
-
-function BuyerMessages(){
- const [text,setText]=useState(''); const [msgs,setMsgs]=useState(()=>read('mvec_buyer_messages',[{from:'Kigali Tech Store',text:'Your order is being prepared.',date:'31/08/2026'}]));
- const send=()=>{if(!text.trim())return;const next=[...msgs,{from:'You',text:text.trim(),date:dateDMY(new Date())}];setMsgs(next);write('mvec_buyer_messages',next);setText('');};
- return <><Header eyebrow="BUYER" title="Messages" desc="Contact a seller about an order and keep the conversation linked to its reference."/><div className="data-card"><div className="thread-head"><div><h3>Kigali Tech Store</h3><small>MVEC-WIRELESS-NOISE-CANCELLING-HEADPHONES-2026-000001-4821</small></div><Link className="outline-btn" to="/orders">View order</Link></div><div className="message-list">{msgs.map((m,i)=><div key={i} className={'message-bubble '+(m.from==='You'?'mine':'theirs')}><p>{m.text}</p><small>{m.from} · {m.date}</small></div>)}</div><div className="message-compose"><input value={text} onChange={e=>setText(e.target.value)} placeholder="Write a message…" onKeyDown={e=>e.key==='Enter'&&send()}/><button className="gradient-btn" onClick={send}>Send</button></div></div></>;
+ const [rows,setRows]=useState([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+ useEffect(()=>{disputesApi.getAll({pageSize:50}).then(res=>setRows(res.data||[])).catch(err=>setError(extractErrorMessage(err))).finally(()=>setLoading(false));},[]);
+ return <><Header eyebrow="BUYER" title="Refunds" desc="Track refund requests you've reported from your orders."/>
+  <SettingCard title="Report a problem with an order" desc="Open the order and choose Report a problem to start a refund request with evidence."><Link className="gradient-btn" to="/orders">View my orders</Link></SettingCard>
+  {error&&<div className="form-error">{error}</div>}
+  <div className="data-card">{loading&&<div className="empty-state"><h3>Loading…</h3></div>}
+   {!loading&&<SmartTable columns={[{key:'disputeNumber',label:'Case'},{key:'order',label:'Order',render:r=>r.order?.orderNumber||''},{key:'reason',label:'Reason'},{key:'disputedAmount',label:'Amount',render:r=>money(r.disputedAmount)},{key:'status',label:'Status'}]} rows={rows} rowKey={r=>r.id} searchPlaceholder="Search refunds…" empty="No refund requests yet." exportName="buyer-refunds"/>}
+  </div></>;
 }
 
 function BuyerCompare(){
@@ -176,7 +225,6 @@ function BuyerModule({type}){
  if(type==='compare') return <BuyerCompare/>;
  if(type==='recommendations') return <BuyerRecommendations/>;
  if(type==='refunds') return <BuyerRefunds/>;
- if(type==='messages') return <BuyerMessages/>;
  if(type==='notifications') return <><Header eyebrow="BUYER" title="Notifications" desc="Order, payment, delivery and marketplace updates in one place."/><NotificationPanel role="buyer"/></>;
  if(type==='support') return <><Header eyebrow="BUYER" title="Help & Support" desc="Get help with orders, payments, delivery and refunds."/><div className="dash-grid"><SettingCard title="Order problem" desc="Something went wrong with an order? Open the order and choose Report a problem."><Link className="gradient-btn" to="/orders">View my orders</Link></SettingCard><SettingCard title="Common questions"><div className="timeline">{['How do I track my order?','How are delivery fees calculated?','How do refunds work?','How can I contact a seller?'].map((x,i)=><div className="timeline-item done" key={x}><i/><div><b>{i+1}. {x}</b><small>MVEC Help Center</small></div></div>)}</div></SettingCard></div></>;
  if(type==='subscription') return <BuyerSubscription/>;

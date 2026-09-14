@@ -39,4 +39,6 @@ export const adminApi = {
     client.patch(`/users/${id}/status`, payload).then((r) => r.data),
   getOverview: () =>
     client.get("/admin/overview").then((r) => r.data),
+  getPayments: (params) =>
+    client.get("/admin/payments", { params }).then((r) => r.data),
 };

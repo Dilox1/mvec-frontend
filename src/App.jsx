@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -41,7 +41,6 @@ import {
   RiskManagement,
   LanguageSettings,
 } from "./pages/ExtendedModules";
-import { syncOrderLifecycle } from "./services/mvecStore";
 function DashboardDelivery({ role }) {
   return (
     <DashboardLayout admin={role === "admin"}>
@@ -50,11 +49,6 @@ function DashboardDelivery({ role }) {
   );
 }
 export default function App() {
-  useEffect(() => {
-    syncOrderLifecycle();
-    const timer = setInterval(syncOrderLifecycle, 1000);
-    return () => clearInterval(timer);
-  }, []);
   return (
     <>
     <Routes>
@@ -238,14 +232,6 @@ export default function App() {
         element={
           <RequireAuth roles={["vendor"]}>
             <DashboardDelivery role="vendor" />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/vendor/transactions"
-        element={
-          <RequireAuth roles={["vendor"]}>
-            <Transactions />
           </RequireAuth>
         }
       />
